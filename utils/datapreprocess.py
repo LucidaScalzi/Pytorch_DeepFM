@@ -51,6 +51,7 @@ class CategoryDictGenerator:
             self.dicts[i]['<unk>'] = 0
 
     # 我们的raw data数据是有存在一些缺少值的，我们对缺失值采取的手段是填0处理
+    # 注意不只是缺失值会被填为0，一些词频较低的也会填充为0
     def gen(self, idx, key):
         if key not in self.dicts[idx]:
             res = self.dicts[idx]['<unk>']
@@ -175,7 +176,9 @@ def preprocess(datadir, outdir):
 # 运行下来就会在".\data"路径生成处理好的训练数据"train.txt"、测试数据"test.txt"以及特征表"feature_size.txt"
 
 if __name__ == "__main__":
-    preprocess('../data/raw', '../data')
+    # 这里要改一下，不是绝对路径就跑不出来
+    preprocess('E:/github/Pytorch_DeepFM/data/raw/', 'E:/github/Pytorch_DeepFM/data/')
+    # preprocess('../data/raw/', '../data')
     
 #for test 0923
 

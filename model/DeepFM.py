@@ -16,14 +16,15 @@ class DeepFM(nn.Module):
     """
     A DeepFM network with RMSE loss for rates prediction problem.
 
-    There are two parts in the architecture of this network: fm part for low
-    order interactions of features and deep part for higher order. In this 
-    network, we use bachnorm and dropout technology for all hidden layers,
+    There are two parts in the architecture of this network: 
+    1. fm part for low order interactions of features 
+    2. deep part for higher order.
+    In this network, we use bachnorm and dropout technology for all hidden layers,
     and "Adam" method for optimazation.
 
     You may find more details in this paper:
     DeepFM: A Factorization-Machine based Neural Network for CTR Prediction,
-    Huifeng Guo, Ruiming Tang, Yunming Yey, Zhenguo Li, Xiuqiang He.
+    Huifeng Guo, Ruiming Tang, Yunming Yey, Zhenguo Li, Xiuqiang He.
     """
 
     def __init__(self, feature_sizes, embedding_size=4,
@@ -57,12 +58,21 @@ class DeepFM(nn.Module):
             self.device = torch.device('cuda')
         else:
             self.device = torch.device('cpu')
+
+
+
+
         """
             init fm part
         """
 
 #        self.fm_first_order_embeddings = nn.ModuleList(
 #            [nn.Embedding(feature_size, 1) for feature_size in self.feature_sizes])
+
+        # 所以后面是把连续变量和离散变量分开了，上面那条是没有分开的
+        # nn.Embedding 类似一个矩阵类：矩阵的长是字典的大小，宽是用来表示字典中每个元素的属性向量，向量的维度根据你想要表示的元素的复杂度而定
+        # class torch.nn.Embedding(num_embeddings, embedding_dim, padding_idx=None, max_norm=None, norm_type=2, scale_grad_by_freq=False, sparse=False)
+        # 嵌入字典的大小，每个嵌入向量的大小
         fm_first_order_Linears = nn.ModuleList(
                 [nn.Linear(feature_size, self.embedding_size) for feature_size in self.feature_sizes[:13]])
         fm_first_order_embeddings = nn.ModuleList(
@@ -71,18 +81,28 @@ class DeepFM(nn.Module):
 
 #        self.fm_second_order_embeddings = nn.ModuleList(
 #            [nn.Embedding(feature_size, self.embedding_size) for feature_size in self.feature_sizes])
+        # 写法上和fm_first_order_Linears并没有啥区别
         fm_second_order_Linears = nn.ModuleList(
                 [nn.Linear(feature_size, self.embedding_size) for feature_size in self.feature_sizes[:13]])
         fm_second_order_embeddings = nn.ModuleList(
                 [nn.Embedding(feature_size, self.embedding_size) for feature_size in self.feature_sizes[13:40]])
         self.fm_second_order_models = fm_second_order_Linears.extend(fm_second_order_embeddings)
 
+
+
         """
             init deep part
+            其实就是2个带着BatchNorm和Dropout的全连接层
+            setattr就是让这2个层跟在了前面的模型后边
         """
+        # self.field_size = len(feature_sizes)
+        # hidden_dims: A list of integer giving the size of each hidden layer.
+        # num_classes: An integer giving the number of classes to predict.
         all_dims = [self.field_size * self.embedding_size] + \
             self.hidden_dims + [self.num_classes]
+
         for i in range(1, len(hidden_dims) + 1):
+            # setattr() 函数对应函数 getattr()，用于设置属性值，该属性不一定是存在的
             setattr(self, 'linear_'+str(i),
                     nn.Linear(all_dims[i-1], all_dims[i]))
             # nn.init.kaiming_normal_(self.fc1.weight)
@@ -90,6 +110,7 @@ class DeepFM(nn.Module):
                     nn.BatchNorm1d(all_dims[i]))
             setattr(self, 'dropout_'+str(i),
                     nn.Dropout(dropout[i-1]))
+
 
     def forward(self, Xi, Xv):
         """
@@ -99,8 +120,11 @@ class DeepFM(nn.Module):
         - Xi: A tensor of input's index, shape of (N, field_size, 1)
         - Xv: A tensor of input's value, shape of (N, field_size, 1)
         """
+
+
+
         """
-            fm part
+            fm part ： 主要提取1阶和2阶特征
         """
         emb = self.fm_first_order_models[20]
 #        print(Xi.size())
@@ -142,6 +166,9 @@ class DeepFM(nn.Module):
             fm_second_order_emb_square)  # x^2+y^2
         fm_second_order = (fm_sum_second_order_emb_square -
                            fm_second_order_emb_square_sum) * 0.5
+        
+        
+        
         """
             deep part
         """
@@ -154,8 +181,9 @@ class DeepFM(nn.Module):
             deep_out = getattr(self, 'batchNorm_' + str(i))(deep_out)
             deep_out = getattr(self, 'dropout_' + str(i))(deep_out)
 #            print("successful") 
+
         """
-            sum
+            sum：整合部分
         """
 #        print("1",torch.sum(fm_first_order, 1).shape)
 #        print("2",torch.sum(fm_second_order, 1).shape)
